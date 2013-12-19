@@ -2,6 +2,9 @@ require 'google_drive'
 
 module EasyTranslateDev
   module Patch
+
+    HASH_VALUE_UNIQUE_REPLACEMENT = 'TMP'
+
     def translate(input, options = {}, http_options = {})
       translate_from = (options[:from] || 'en').to_s
       translate_to = options[:to].to_s
@@ -10,8 +13,7 @@ module EasyTranslateDev
       return translate_hash(input, translate_from, translate_to) if input.is_a?(Hash)
       return translate_array(input, translate_from, translate_to) if input.is_a?(Array)
       return translate_text(input, translate_from, translate_to) if input.is_a?(String)
-      raise Exception('Unexpected input')
-
+      raise Exception('Unexpected input, only: String, Hash, Array allowed!')
     end
 
     def session
@@ -22,21 +24,23 @@ module EasyTranslateDev
       @easy_translate_dev_spreadsheet ||= session.spreadsheet_by_key(EasyTranslateDev.configuration.google_spreadsheet_id).worksheets[0]
     end
 
-    def translate_text(text, translate_from, translate_to)
-      translate_array([text], translate_from, translate_to).first
+    def translate_text(text_to_translate, translate_from, translate_to)
+      translate_array([text_to_translate], translate_from, translate_to).first
     end
 
     def translate_array(array_to_translate, translate_from, translate_to)
-      array_to_translate.each_with_index do |text, row|
-        spreadsheet[1, row + 1] = text
-        spreadsheet[2, row + 1] = "=GoogleTranslate(A#{row+1};\"#{translate_from}\";\"#{translate_to}\""
+      array_to_translate.each_with_index do |text, index|
+        row = index + 2
+        spreadsheet[row, 1] = text
+        spreadsheet[row, 2] = "=GoogleTranslate(A#{row};\"#{translate_from}\";\"#{translate_to}\")"
       end
       spreadsheet.synchronize
-      results = []
-      array_to_translate.each_with_index do |_, row|
-        results << spreadsheet[2, row+1]
+      translated_array = []
+      array_to_translate.size.times do |index|
+        row = index + 2
+        translated_array << spreadsheet[row, 2]
       end
-      results
+      translated_array
     end
 
     def translate_hash(hash, translate_from, translate_to)
@@ -52,10 +56,10 @@ module EasyTranslateDev
           traverse_hash(read, value, results)
         elsif value.is_a?(Array)
           value.each { |v| traverse_hash(read, v, results) }
-        elsif read && value.is_a?(String) && value.present?
+        elsif read && value && value.is_a?(String) && value.present?
           results << value
-          hash[key] = 'TMP'
-        elsif !read && value.is_a?(String) && value == 'TMP'
+          hash[key] = HASH_VALUE_UNIQUE_REPLACEMENT
+        elsif !read && value && value.is_a?(String) && value == HASH_VALUE_UNIQUE_REPLACEMENT
           hash[key] = results.shift
         end
       end
