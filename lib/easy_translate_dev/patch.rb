@@ -28,19 +28,24 @@ module EasyTranslateDev
       translate_array([text_to_translate], translate_from, translate_to).first
     end
 
-    def cleanup_worksheet
+    def edit_worksheet
+      number_of_worksheets = spreadsheet.worksheets.size
+      if number_of_worksheets > 1
+        spreadsheet.worksheets.each_with_index do |worksheet, index|
+          worksheet.delete if index + 1 < number_of_worksheets
+        end
+      end
       worksheet = create_worksheet
       yield(worksheet)
-      worksheet.delete
     end
 
     def create_worksheet
-      spreadsheet.add_worksheet('EasyTranslateDev', max_rows = 10000, max_cols = 20)
+      spreadsheet.add_worksheet(Time.now.to_i.to_s, max_rows = 10000, max_cols = 20)
     end
 
     def translate_array(array_to_translate, translate_from, translate_to)
       translated_array = []
-      cleanup_worksheet do |worksheet|
+      edit_worksheet do |worksheet|
         array_to_translate.each_with_index do |text, index|
           row = index + 2
           worksheet[row, 1] = text
@@ -70,7 +75,7 @@ module EasyTranslateDev
           value.each { |v| traverse_hash(read, v, results) }
         elsif value.is_a?(Array) && value.first.is_a?(String)
           if read
-            results += value
+            value.each {|v| results << v}
             hash[key] = Array.new(value.size, HASH_VALUE_UNIQUE_REPLACEMENT)
           else
             hash[key] = results.shift(value.size)
