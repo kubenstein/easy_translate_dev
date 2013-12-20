@@ -20,7 +20,7 @@ module EasyTranslateDev
       @easy_translate_dev_session ||= GoogleDrive.login(EasyTranslateDev.configuration.google_user, EasyTranslateDev.configuration.google_password)
     end
 
-    def spreadshit
+    def spreadsheet
       @easy_translate_dev_spreadsheet ||= session.spreadsheet_by_key(EasyTranslateDev.configuration.google_spreadsheet_id)
     end
 
@@ -28,19 +28,19 @@ module EasyTranslateDev
       translate_array([text_to_translate], translate_from, translate_to).first
     end
 
-    def cleanup_workship
+    def cleanup_worksheet
       worksheet = create_worksheet
       yield(worksheet)
       worksheet.delete
     end
 
     def create_worksheet
-      spreadshit.add_worksheet('EasyTranslateDev', max_rows = 10000, max_cols = 20)
+      spreadsheet.add_worksheet('EasyTranslateDev', max_rows = 10000, max_cols = 20)
     end
 
     def translate_array(array_to_translate, translate_from, translate_to)
       translated_array = []
-      cleanup_workship do |worksheet|
+      cleanup_worksheet do |worksheet|
         array_to_translate.each_with_index do |text, index|
           row = index + 2
           worksheet[row, 1] = text
